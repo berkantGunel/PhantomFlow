@@ -1,0 +1,6 @@
+.env
+*.db
+__pycache__
+bot.log
+bot_error.log
+.DS_Store

@@ -1,0 +1,23 @@
+{
+  "tokens": [
+    {
+      "name": "MILKY",
+      "ca": "8E4hsdLbbzC1hWGnpS1GKZtDJG29DdEM1TZvGkzHjups",
+      "alert_up": 5,
+      "alert_down": 5
+    },
+    {
+      "name": "XRM",
+      "ca": "9Ep7XNDaBziwVe9NmTWQAuucL3EaoGzmq1Lxv1HVK4y2",
+      "alert_up": 5.0,
+      "alert_down": 5.0
+    },
+    {
+      "name": "DESIGN",
+      "ca": "3BheocqQgiYvLnDTuT82WcpyTxhuGtJ3Vjb8f9fbyBLV",
+      "alert_up": 5.0,
+      "alert_down": 5.0
+    }
+  ],
+  "interval_minutes": 5
+}
