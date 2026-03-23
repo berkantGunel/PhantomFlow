@@ -24,7 +24,12 @@ def is_authorized(update: Update) -> bool:
     import os
     from dotenv import load_dotenv
     load_dotenv()
-    return str(update.effective_chat.id) == str(os.getenv("TELEGRAM_CHAT_ID"))
+    actual_chat_id = str(update.effective_chat.id)
+    expected_chat_id = str(os.getenv("TELEGRAM_CHAT_ID"))
+    is_auth = (actual_chat_id == expected_chat_id)
+    if not is_auth:
+        print(f"[AUTH DENIED] Gelen mesajın Chat ID'si: {actual_chat_id}, Beklenen: {expected_chat_id}")
+    return is_auth
 
 def format_number(value: float) -> str:
     """Büyük sayıları okunabilir formata çevirir"""
@@ -43,6 +48,7 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📋 /liste - Takip edilenleri listele\n"
         "➕ /ekle CA_ADRESI - Yeni token ekle\n"
         "❌ /sil SIRA_NO - Token sil\n"
+        "🎚 /oran - Alert eşiklerini yönet\n"
         "📄 /log - Son bot loglarını göster"
     )
     await update.message.reply_text(text, parse_mode="HTML")
@@ -120,13 +126,97 @@ async def ekle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         config["tokens"].append({
             "name": name,
             "ca": ca,
-            "alert_up": 5.0,
-            "alert_down": 5.0
+            "alert_up": 1.0,
+            "alert_down": 1.0
         })
         save_config(config)
         await update.message.reply_text(f"✅ <b>{name}</b> başarıyla eklendi!\nFiyat: ${format_price(float(pair.get('priceUsd', 0)))}\n\n<i>Bot arka planda her 5 dakikada bir kontrol edecek. Liste için /liste yazabilirsiniz.</i>", parse_mode="HTML")
     except Exception as e:
         await update.message.reply_text(f"Eklerken bir hata oluştu: {e}")
+
+async def oran_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /oran COIN_ADI YÜZDE  → o coinin alert eşiğini günceller
+    /oran COIN_ADI        → o coinin mevcut eşiğini gösterir
+    /oran                 → tüm coinlerin eşiklerini listeler
+    """
+    if not is_authorized(update): return
+    config = load_config()
+
+    # Argüman yoksa → hepsini listele
+    if not context.args:
+        if not config["tokens"]:
+            await update.message.reply_text("Takipte coin yok.")
+            return
+        lines = ["📊 <b>Coin Alert Eşikleri</b>\n"]
+        for t in config["tokens"]:
+            up   = t.get("alert_up", 1.0)
+            down = t.get("alert_down", 1.0)
+            lines.append(f"🔹 <b>{t['name']}</b>: 🚀 %{up:.1f} | 🔻 %{down:.1f}")
+        lines.append("\n💡 <i>Değiştirmek için:</i> <code>/oran COIN YÜZDE</code>")
+        lines.append("   <i>Örn:</i> <code>/oran SOL 3</code> → SOL için %3 eşik")
+        await update.message.reply_text("\n".join(lines), parse_mode="HTML")
+        return
+
+    # Sadece coin adı verilmişse → o coinin eşiğini göster
+    if len(context.args) == 1:
+        coin_arg = context.args[0].upper()
+        found = next((t for t in config["tokens"] if t["name"].upper() == coin_arg), None)
+        if not found:
+            await update.message.reply_text(
+                f"❌ <b>{coin_arg}</b> bulunamadı. Listeyi görmek için /liste yazın.",
+                parse_mode="HTML"
+            )
+            return
+        up   = found.get("alert_up", 1.0)
+        down = found.get("alert_down", 1.0)
+        await update.message.reply_text(
+            f"📊 <b>{found['name']}</b> mevcut eşik:\n"
+            f"🚀 Yükseliş: %{up:.1f}  |  🔻 Düşüş: %{down:.1f}\n\n"
+            f"💡 <i>Değiştirmek:</i> <code>/oran {found['name']} YENİ_YÜZDE</code>",
+            parse_mode="HTML"
+        )
+        return
+
+    # İki argüman: COIN ve YÜZDE
+    coin_arg = context.args[0].upper()
+    try:
+        new_rate = float(context.args[1].replace(",", "."))
+        if new_rate <= 0 or new_rate > 100:
+            raise ValueError("Geçersiz aralık")
+    except ValueError:
+        await update.message.reply_text(
+            "❌ Geçersiz yüzde değeri. 0-100 arası bir sayı girin.\n"
+            "   Örn: <code>/oran SOL 3.5</code>",
+            parse_mode="HTML"
+        )
+        return
+
+    # Coin'i bul (büyük/küçük harf duyarsız)
+    target = next((t for t in config["tokens"] if t["name"].upper() == coin_arg), None)
+    if not target:
+        names = ", ".join(t["name"] for t in config["tokens"])
+        await update.message.reply_text(
+            f"❌ <b>{coin_arg}</b> kayıtlı değil.\n"
+            f"Takipteki coinler: <code>{names}</code>",
+            parse_mode="HTML"
+        )
+        return
+
+    old_up   = target.get("alert_up", 1.0)
+    old_down = target.get("alert_down", 1.0)
+    target["alert_up"]   = new_rate
+    target["alert_down"] = new_rate
+    save_config(config)
+
+    await update.message.reply_text(
+        f"✅ <b>{target['name']}</b> alert eşiği güncellendi!\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"🔼 Eski: %{old_up:.1f} → Yeni: %{new_rate:.1f}\n"
+        f"🔽 Eski: %{old_down:.1f} → Yeni: %{new_rate:.1f}\n\n"
+        f"<i>Artık {target['name']} %{new_rate:.1f} hareket ettiğinde bildirim gelecek.</i>",
+        parse_mode="HTML"
+    )
 
 async def sil_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update): return
@@ -175,6 +265,11 @@ async def yardim_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "❌ <b>/sil SIRA_NO</b>\n"
         "├ Bir tokenı takipten çıkarır. Sıra no için önce /liste komutuna bakabilirsiniz.\n"
         "└ Örn: <code>/sil 1</code> (1. sıradaki tokenı siler)\n\n"
+        "🎚 <b>/oran [COIN] [YÜZDE]</b>\n"
+        "├ Her coin için ayrı alert eşiği ayarlar (yükseliş ve düşüş için aynı oran).\n"
+        "├ <code>/oran</code> — Tüm coinlerin mevcut eşiklerini listeler\n"
+        "├ <code>/oran SOL</code> — Sadece SOL'un eşiğini gösterir\n"
+        "└ <code>/oran SOL 3</code> — SOL için %3 eşik belirler\n\n"
         "📄 <b>/log</b>\n"
         "├ Botun arka plandaki işlemlerini, aldığı hataları ve günlüğünün son 20 satırını ekrana basar.\n\n"
         "💡 <i>Kısa menüyü görmek için /start komutunu kullanabilirsiniz.</i>"
@@ -184,10 +279,10 @@ async def yardim_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def run_telegram_bot(bot_token: str):
     """Event Loop oluşturup Telegram uygulamasını ayağa kaldırır."""
     import asyncio
-    try:
-        asyncio.get_event_loop()
-    except RuntimeError:
-        asyncio.set_event_loop(asyncio.new_event_loop())
+    # Python 3.9 uyumluluğu: önceki asyncio.run() çağrıları loop'u kapatmış olabilir.
+    # Her zaman yeni bir event loop oluşturarak RuntimeError'ı önle.
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
         
     app = ApplicationBuilder().token(bot_token).build()
     
@@ -196,8 +291,9 @@ def run_telegram_bot(bot_token: str):
     app.add_handler(CommandHandler("liste", liste_cmd))
     app.add_handler(CommandHandler("ekle", ekle_cmd))
     app.add_handler(CommandHandler("sil", sil_cmd))
+    app.add_handler(CommandHandler("oran", oran_cmd))
     app.add_handler(CommandHandler("log", log_cmd))
     app.add_handler(CommandHandler("yardim", yardim_cmd))
     
-    print("\n[TELEGRAM] 📱 Telefından interaktif komut modülü aktif! (/start, /fiyat, /ekle...)")
-    app.run_polling()
+    print("\n[TELEGRAM] 📱 Telefından interaktif komut modülü aktif! (/start, /fiyat, /ekle, /oran...)")
+    app.run_polling(drop_pending_updates=True)

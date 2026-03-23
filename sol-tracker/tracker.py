@@ -47,20 +47,19 @@ def check_token(token_config: dict) -> Optional[dict]:
     # 2. DB'den son fiyatı al
     last_price = get_last_price(ca)
 
-    # 3. Fiyatı DB'ye kaydet (her durumda)
-    save_price(ca, name, current_price)
-
-    # 4. İlk çalışma kontrolü — DB boşsa sadece kaydet, alert gönderme
+    # 3. İlk çalışma kontrolü — DB boşsa sadece kaydet, alert gönderme
     if last_price is None:
+        save_price(ca, name, current_price)
         print(f"[TRACKER] {name}: İlk kayıt yapıldı — ${format_price(current_price)}")
         return None
 
-    # 5. Yüzde değişim hesapla
+    # 4. Yüzde değişim hesapla (Son referans fiyatına göre)
     percent_change = ((current_price - last_price) / last_price) * 100
 
-    # 6. Eşik kontrolü
+    # 5. Eşik kontrolü
     if percent_change >= alert_up:
         # Yükseliş alert'i
+        save_price(ca, name, current_price)
         return _build_alert(
             name=name,
             ca=ca,
@@ -71,6 +70,7 @@ def check_token(token_config: dict) -> Optional[dict]:
         )
     elif percent_change <= -alert_down:
         # Düşüş alert'i
+        save_price(ca, name, current_price)
         return _build_alert(
             name=name,
             ca=ca,
@@ -81,7 +81,7 @@ def check_token(token_config: dict) -> Optional[dict]:
         )
 
     # Eşik aşılmadı
-    print(f"[TRACKER] {name}: ${format_price(current_price)} (Değişim: {percent_change:+.2f}%) — Eşik aşılmadı.")
+    print(f"[TRACKER] {name}: ${format_price(current_price)} (Son Referans: ${format_price(last_price)} | Toplam Değişim: {percent_change:+.2f}%) — Eşik aşılmadı.")
     return None
 
 

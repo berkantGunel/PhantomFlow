@@ -3,20 +3,56 @@
     {
       "name": "MILKY",
       "ca": "8E4hsdLbbzC1hWGnpS1GKZtDJG29DdEM1TZvGkzHjups",
-      "alert_up": 5,
-      "alert_down": 5
+      "alert_up": 1.0,
+      "alert_down": 1.0
     },
     {
       "name": "XRM",
       "ca": "9Ep7XNDaBziwVe9NmTWQAuucL3EaoGzmq1Lxv1HVK4y2",
-      "alert_up": 5.0,
-      "alert_down": 5.0
+      "alert_up": 1.0,
+      "alert_down": 1.0
     },
     {
       "name": "DESIGN",
       "ca": "3BheocqQgiYvLnDTuT82WcpyTxhuGtJ3Vjb8f9fbyBLV",
-      "alert_up": 5.0,
-      "alert_down": 5.0
+      "alert_up": 1.0,
+      "alert_down": 1.0
+    },
+    {
+      "name": "ORY",
+      "ca": "DEHoLKtoFGvLZeA29jsUHxS14MZhjokD52SABiMfBAGS",
+      "alert_up": 1.0,
+      "alert_down": 1.0
+    },
+    {
+      "name": "EPSTEIN",
+      "ca": "EF228ijSZdSampJMvhLUiijJGP5PTH1Z17i71JR5pump",
+      "alert_up": 1.0,
+      "alert_down": 1.0
+    },
+    {
+      "name": "TWINKLE",
+      "ca": "AJw67Tkzuryz5v8K1Qk5exNLm8NXr9AjV2cAvXDfu3Su",
+      "alert_up": 1.0,
+      "alert_down": 1.0
+    },
+    {
+      "name": "CECE",
+      "ca": "8fCWwxUWryzMWFS8WfuC7Tebkg5nWMQ4xrzrw7yJBAGS",
+      "alert_up": 1.0,
+      "alert_down": 1.0
+    },
+    {
+      "name": "WMDR",
+      "ca": "Gzb9XduScnJqZ3GKbazbPLWx8Nw8V6uM9VqEZLe8mBLV",
+      "alert_up": 1.0,
+      "alert_down": 1.0
+    },
+    {
+      "name": "SLONANA",
+      "ca": "3C6S7LGiyzdr5j1ZB2WfadPPzbwE15VxntmdtGY3BAGS",
+      "alert_up": 1.0,
+      "alert_down": 1.0
     }
   ],
   "interval_minutes": 5

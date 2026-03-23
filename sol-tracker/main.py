@@ -33,20 +33,15 @@ def load_config() -> dict:
     if "tokens" not in config or not config["tokens"]:
         print("[HATA] config.json'da 'tokens' listesi boş veya eksik!")
         sys.exit(1)
-
-    if "telegram" not in config:
-        print("[HATA] config.json'da 'telegram' ayarları eksik!")
+    from dotenv import load_dotenv
+    load_dotenv()
+    
+    if not os.getenv("TELEGRAM_BOT_TOKEN"):
+        print("[HATA] .env dosyasında TELEGRAM_BOT_TOKEN ayarlanmamış!")
         sys.exit(1)
 
-    telegram = config["telegram"]
-    if not telegram.get("bot_token") or telegram["bot_token"] == "BOT_TOKEN_BURAYA":
-        print("[HATA] Telegram bot_token ayarlanmamış!")
-        print("       config.json'daki 'bot_token' alanını doldurun.")
-        sys.exit(1)
-
-    if not telegram.get("chat_id") or telegram["chat_id"] == "CHAT_ID_BURAYA":
-        print("[HATA] Telegram chat_id ayarlanmamış!")
-        print("       config.json'daki 'chat_id' alanını doldurun.")
+    if not os.getenv("TELEGRAM_CHAT_ID"):
+        print("[HATA] .env dosyasında TELEGRAM_CHAT_ID ayarlanmamış!")
         sys.exit(1)
 
     # Token'ları doğrula

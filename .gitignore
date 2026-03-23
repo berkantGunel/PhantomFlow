@@ -4,3 +4,6 @@ __pycache__
 bot.log
 bot_error.log
 .DS_Store
+PhantomFlow/
+.vscode/
+sol-tracker/bot_output.log

@@ -5,9 +5,10 @@
 import time
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 
 from tracker import check_token
-from notifier import send_alert, send_error_message
+from notifier import send_alert, send_error_message, send_daily_digest
 
 
 def _check_all_tokens(tokens: list, bot_token: str, chat_id: str):
@@ -65,6 +66,16 @@ def start_scheduler(config: dict):
         name="Token Fiyat Kontrolü",
         replace_existing=True,
         max_instances=1  # Aynı anda birden fazla çalışmayı engelle
+    )
+    
+    # Her akşam saat 21:00'de günlük özeti gönder
+    scheduler.add_job(
+        func=send_daily_digest,
+        trigger=CronTrigger(hour=21, minute=0),
+        args=[bot_token, chat_id, tokens],
+        id="daily_digest",
+        name="Günlük Akşam Bülteni",
+        replace_existing=True
     )
 
     scheduler.start()

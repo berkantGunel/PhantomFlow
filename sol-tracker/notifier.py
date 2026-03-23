@@ -10,20 +10,26 @@ from telegram.constants import ParseMode
 from tracker import format_price
 
 
+def _run_async(coro):
+    """Async fonksiyonu güvenli şekilde çalıştır (her thread için yeni loop)."""
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+    except Exception as e:
+        print(f"[NOTIFIER] Async çalıştırma hatası: {e}")
+
+
 def send_alert(bot_token: str, chat_id: str, alert: dict):
     """
     Alert bilgisini Telegram'a gönder.
     Senkron wrapper — async fonksiyonu çağırır.
     """
     try:
-        asyncio.run(_send_alert_async(bot_token, chat_id, alert))
-    except RuntimeError:
-        # Zaten çalışan bir event loop varsa (APScheduler içinde olabilir)
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(_send_alert_async(bot_token, chat_id, alert))
-        else:
-            loop.run_until_complete(_send_alert_async(bot_token, chat_id, alert))
+        _run_async(_send_alert_async(bot_token, chat_id, alert))
     except Exception as e:
         print(f"[NOTIFIER] Alert gönderme hatası: {e}")
 
@@ -84,13 +90,7 @@ async def _send_alert_async(bot_token: str, chat_id: str, alert: dict):
 def send_startup_message(bot_token: str, chat_id: str, token_count: int):
     """Bot başladığında Telegram'a bilgi mesajı gönder."""
     try:
-        asyncio.run(_send_startup_async(bot_token, chat_id, token_count))
-    except RuntimeError:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(_send_startup_async(bot_token, chat_id, token_count))
-        else:
-            loop.run_until_complete(_send_startup_async(bot_token, chat_id, token_count))
+        _run_async(_send_startup_async(bot_token, chat_id, token_count))
     except Exception as e:
         print(f"[NOTIFIER] Başlangıç mesajı gönderme hatası: {e}")
 
@@ -119,7 +119,7 @@ async def _send_startup_async(bot_token: str, chat_id: str, token_count: int):
 def send_error_message(bot_token: str, chat_id: str, error_text: str):
     """Hata durumunda Telegram'a bildirim gönder."""
     try:
-        asyncio.run(_send_error_async(bot_token, chat_id, error_text))
+        _run_async(_send_error_async(bot_token, chat_id, error_text))
     except Exception as e:
         print(f"[NOTIFIER] Hata mesajı gönderme hatası: {e}")
 
@@ -152,3 +152,49 @@ def _format_number(value: float) -> str:
         return f"{value / 1_000:,.1f}K"
     else:
         return f"{value:,.0f}"
+
+def send_daily_digest(bot_token: str, chat_id: str, tokens: list):
+    """Her akşam günlük özet raporunu gönder."""
+    try:
+        _run_async(_send_daily_digest_async(bot_token, chat_id, tokens))
+    except Exception as e:
+        print(f"[NOTIFIER] Günlük özet hatası: {e}")
+
+async def _send_daily_digest_async(bot_token: str, chat_id: str, tokens: list):
+    """Günlük özeti Telegram'a asenkron gönder."""
+    try:
+        from fetcher import fetch_token_data
+        from tracker import format_price
+        
+        bot = Bot(token=bot_token)
+        lines = ["🌙 <b>GÜNLÜK PİYASA ÖZETİ</b>\n"]
+        
+        for t in tokens:
+            data = fetch_token_data(t["ca"])
+            if data:
+                price_str = format_price(data["price_usd"])
+                change_24 = data["price_change_24h"]
+                
+                if change_24 > 0:
+                    emoji = "🟢"
+                elif change_24 < 0:
+                    emoji = "🔴"
+                else:
+                    emoji = "⚪️"
+                    
+                lines.append(f"{emoji} <b>{t['name']}</b>: ${price_str}")
+                lines.append(f"   └ 24s Değişim: <b>{change_24:+.2f}%</b>\n")
+            else:
+                lines.append(f"⚠️ <b>{t['name']}</b>: Veri alınamadı\n")
+                
+        lines.append(f"⏰ <i>{datetime.now().strftime('%Y-%m-%d %H:%M')}</i>")
+        message = "\n".join(lines)
+        
+        await bot.send_message(
+            chat_id=chat_id,
+            text=message,
+            parse_mode=ParseMode.HTML
+        )
+        print("[NOTIFIER] Günlük bülten başarıyla gönderildi.")
+    except Exception as e:
+        print(f"[NOTIFIER] Bülten gönderme hatası: {e}")
